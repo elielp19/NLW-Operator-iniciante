@@ -14,15 +14,62 @@
 
 <script type="text/javascript">  
 
-const cofig = {
+    const app = {
+        transcriptionUrl: '',
+        public_id: '',
+        version: '',
+         waitForTranscription: async () => {
+                const maxAttempts = 30;
+                const delay = 2000; // 2 segundos entre as tentativas
+
+                for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                    const url = `https://res.cloudinary.com/${config.cloudName}/raw/upload/v${Date.now()}/${app.public_id}.transcript`;
+                    
+                    try {
+                        console.log(`Tentativa ${attempt}/${maxAttempts}: Verificando transcrição...`);
+                        const response = await fetch(url);
+                        
+                        if (response.ok) {
+                            app.transcriptionUrl = url;
+                            console.log('Transcrição encontrada!', url);
+                            return true
+                        }
+                    } catch (error) {
+                        console.log(`Tentativa ${attempt} falhou:`, error.message); 
+                    }
+                    
+                    // Aguarda antes da próxima tentativa (exceto a última)
+                    if (attempt < maxAttempts) {
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    }
+                }
+
+                console.log('Transcrição não encontrada após todas as tentativas.');
+                return false
+            },
+            getTranscription: async () => {
+                const response = await fetch(app.transcriptionUrl);
+                return response.text()
+            },
+            getViralMoment: async () => {
+                const transcription = await app.getTranscription()
+                // TODO: Implementar lógica para extrair o momento viral da transcrição
+            },
+        }
+
+
+const config = {
     cloudName:'dpuiatnst',
     uploadPreset:'upload_nlw'
 }
 const myWidget = cloudinary.createUploadWidget(
-    cofig,
-    (error, result) => { 
+    config,
+    async (error, result) => { 
     if (!error && result && result.event === "success") { 
       console.log('Done! Here is the image info: ', result.info); 
+      app.public_id = result.info.public_id;
+      
+      const isReady = await app.waitForTranscription();
     }
   }
 )
